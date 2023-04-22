@@ -2,14 +2,14 @@ import tiktoken
 import openai
 import os
 import time
-# from azure.identity import  DefaultAzureCredential
-# from azure.keyvault.secrets import SecretClient
 from azure.ai.textanalytics import TextAnalyticsClient
 from azure.core.credentials import AzureKeyCredential
 import subprocess
+from googlesearch import search
 
-# model = "gpt-35-turbo-version-0301"
-model = "gpt-4-32k"
+
+model = "gpt-35-turbo-version-0301"
+# model = "gpt-4-32k"
 openai.api_type = "azure"
 openai.api_version = "2023-03-15-preview"
 AI1_API_BASE = os.getenv("GPT_API_ENDPOINT")
@@ -20,13 +20,27 @@ AI2_API_KEY = os.getenv("GPT-API-KEY2")
 AZURE_LANGUAGE_ENDPOINT = os.getenv("AZURE_LANGUAGE_ENDPOINT")
 AZURE_LANGUAGE_KEY = os.getenv("AZURE_LANGUAGE_KEY")
 
-system_message1 = {"role": "system", "content": "You are an AI number 1. You task is to handle user problems together with AI number 2. Plan together how to solve user problem, suggest ideas to each others, validate others ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. If you need to write code validate that it does what user asked it to do. If not. continue developing it. Double check the code at the end that it's correct."}
-system_message2 = {"role": "system", "content": "You are an AI number 2. You task is to handle user problems together with AI number 1. Plan together how to solve user problem, suggest ideas to each others, validate others ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. If you need to write code validate that it does what user asked it to do. If not. continue developing it. double check the code at the end that it's correct."}
+# system_message1 = {"role": "system", "content": "You are an AI number 1. You task is to handle user problems together with AI number 2. Plan together how to solve user problem, suggest ideas to each others, validate others ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. If you need to write code validate that it does what user asked it to do. If not. continue developing it. Double check the code at the end that it's correct. You can also search answers from the internet."}
+# system_message2 = {"role": "system", "content": "You are an AI number 2. You task is to handle user problems together with AI number 1. Plan together how to solve user problem, suggest ideas to each others, validate others ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. If you need to write code validate that it does what user asked it to do. If not. continue developing it. double check the code at the end that it's correct. You can also search answers from the internet."}
+system_message1 = {"role": "system", "content": "You are an AI number 1. You task is to handle user problems together with AI number 2. Plan together how to solve user problem, suggest ideas to each others, validate others ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for."}
+system_message2 = {"role": "system", "content": "You are an AI number 2. You task is to handle user problems together with AI number 1. Plan together how to solve user problem, suggest ideas to each others, validate others ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for."}
+
 max_response_tokens = 4000
 token_limit = 32000
 conversation = []
 conversation.append(system_message1)
 conversation.append(system_message2)
+
+
+def perform_web_search(query, num_results=5):
+    search_results = []
+    try:
+        for result in search(query, num_results=num_results):
+            search_results.append(result)
+    except Exception as e:
+        print(f"Error while performing web search: {e}")
+    return search_results
+
 
 
 def authenticate_language_client():
@@ -105,6 +119,7 @@ def validate_code(file_path):
     except subprocess.CalledProcessError as e:
         print("\nThe code in the 'generated_code.py' file is not valid.\n")
 
+
 def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1_api_key=None, ai2_api_base=None, ai2_api_key=None):
     start_time = time.time()
     duration = 0
@@ -117,7 +132,8 @@ def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1
     if conversation[-1]["role"] == "user":
         user_message = conversation[-1]["content"]
         custom_message = f"Hey AI_2, user wants us to solve this problem for him: {user_message}. Let's help the user with this problem. What are your initial thoughts?"
-        conversation.append({"role": "assistant", "name": "AI_1", "content": custom_message})
+        conversation.append(
+            {"role": "assistant", "name": "AI_1", "content": custom_message})
         print("\nAI 1: " + custom_message + "\n")
 
     while duration < max_duration:
@@ -130,7 +146,7 @@ def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1
         conversation.append(
             {"role": "assistant", "name": "AI_1", "content": response1['choices'][0]['message']['content']})
         print("\nAI 1: " + response1['choices']
-            [0]['message']['content'] + "\n")
+              [0]['message']['content'] + "\n")
 
         conv_history_tokens = num_tokens_from_messages(conversation)
         while (conv_history_tokens + max_response_tokens >= token_limit):
@@ -142,7 +158,25 @@ def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1
         conversation.append(
             {"role": "assistant", "name": "AI_2", "content": response2['choices'][0]['message']['content']})
         print("\nAI 2: " + response2['choices']
-            [0]['message']['content'] + "\n")
+              [0]['message']['content'] + "\n")
+
+        # Check if the AI's response contains a search query
+        search_query = None
+        if "search the web for" in response1['choices'][0]['message']['content'].lower():
+            search_query = response1['choices'][0]['message']['content'].split(
+                "search the web for ")[1].split(".")[0]
+        elif "search the web for" in response2['choices'][0]['message']['content'].lower():
+            search_query = response2['choices'][0]['message']['content'].split(
+                "search the web for ")[1].split(".")[0]
+
+        # Perform the web search if a query was found
+        if search_query:
+            search_results = perform_web_search(search_query)
+            search_results_str = "\n".join(search_results)
+            conversation.append({"role": "assistant", "name": "AI_1",
+                                "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
+            print(
+                f"\nAI 1: I found the following results for your search query '{search_query}':\n{search_results_str}\n")
 
         duration = time.time() - start_time
         code1 = None
@@ -166,11 +200,32 @@ def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1
             validate_code("generated_code.py")
             break
 
-    return conversation
+    return conversation, search_query
 
 
 while (True):
     user_input = input("User: ")
     conversation.append({"role": "user", "content": user_input})
-    conversation = ai_conversation_loop(conversation, ai1_api_base=AI1_API_BASE,
-                                        ai1_api_key=AI1_API_KEY, ai2_api_base=AI2_API_BASE, ai2_api_key=AI2_API_KEY)
+
+    # Check if the user's input contains a search query
+    search_query = None
+    if "search the web for" in user_input.lower():
+        search_query = user_input.split("search the web for ")[1].split(".")[0]
+
+    # Perform the web search if a query was found and append the results to the conversation
+    if search_query:
+        search_results = perform_web_search(search_query)
+        search_results_str = "\n".join(search_results)
+        conversation.append({"role": "assistant", "name": "AI_1",
+                            "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
+        print(
+            f"\nAI 1: I found the following results for your search query '{search_query}':\n{search_results_str}\n")
+
+    conversation, search_query = ai_conversation_loop(
+        conversation, ai1_api_base=AI1_API_BASE, ai1_api_key=AI1_API_KEY, ai2_api_base=AI2_API_BASE, ai2_api_key=AI2_API_KEY)
+
+    if search_query:
+        search_results = perform_web_search(search_query)
+        search_results_str = "\n".join(search_results)
+        conversation.append({"role": "assistant", "name": "AI_1", "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
+        print(f"\nAI 1: I found the following results for your search query '{search_query}':\n{search_results_str}\n")
