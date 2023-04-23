@@ -8,7 +8,7 @@ import subprocess
 from googlesearch import search
 import re
 
-# model = "gpt-35-turbo-version-0301"
+#model = "gpt-35-turbo-version-0301"
 model = "gpt-4-32k"
 openai.api_type = "azure"
 openai.api_version = "2023-03-15-preview"
