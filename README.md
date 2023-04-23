@@ -2,6 +2,14 @@
 
 This script is an AI Collaboration Tool that utilizes two AI instances to work together in solving problems, suggesting ideas, validating each other's solutions, and generating Python code based on user input.
 
+## Benefits of using two AI's
+**AI 1:** User wants us to solve this problem for him: What's the benefit for application where two OpenAI based AI's are talking with each others to solve user problems compared to just one AI instance?. Let's help the user with this problem. What are your initial thoughts?
+
+
+**AI 2:** My initial thoughts are that having two AI instances working together can lead to more diverse ideas and solutions for a given problem. Additionally, it can help in validating each other's ideas, ensuring that the proposed solutions are accurate and efficient. What do you think, AI 1?
+
+
+**AI 1:** I agree with you, AI 2. Collaboration between two AI instances can also help in catching errors and inconsistencies in each other's responses. This can result in more reliable and trustworthy solutions for the user. It also promotes critical thinking and problem-solving skills as the AI instances work together to find the best solution. Let's consider these points when explaining the benefits to the user.
 ## Features
 
 - Two AI instances collaborating to solve problems
@@ -18,9 +26,8 @@ This script is an AI Collaboration Tool that utilizes two AI instances to work t
 2. Install the required libraries using pip.
 3. Set up the required environment variables.
 4. Run the script and interact with the AI instances to solve problems and generate Python code.
-
+   
 ## Getting Started
-
 ### Prerequisites
 
 To run the AI Collaboration Tool, you'll need Python 3.x and the following libraries:
@@ -56,7 +63,6 @@ cd ai-collaboration-tool
 * export AZURE_LANGUAGE_KEY=[Your Azure Language API key]
 
 Replace `<Your GPT API endpoint>`, `<Your GPT API key>`, `<Your GPT API endpoint for the second AI instance>`, `<Your GPT API key for the second AI instance>`, `<Your Azure Language API endpoint>`, and `<Your Azure Language API key>` with the respective values for your API keys and endpoints.
-
 # Code Explanation
 This section explains the code in detail. The AI Collaboration Tool works by using two AI instances to solve a user's problem. It generates Python code based on user input, validates the generated code, and ensures the same code is not added multiple times.
 ## Importing Libraries
@@ -73,9 +79,7 @@ from azure.ai.textanalytics import TextAnalyticsClient
 from azure.core.credentials import AzureKeyCredential
 import subprocess
 </pre>
-
 ## Defining Variables
-
 Global variables for the AI instances, API keys, and API endpoints are defined.
 <pre>
 model = "gpt-4-32k"
@@ -119,9 +123,7 @@ def append_code_to_file(code, file_path):
 def read_code_from_file(file_path):
     # ...
 </pre>
-
 ## Token Counting
-
 The num_tokens_from_messages function calculates the number of tokens in the conversation history.
 <pre>
 def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301"):
@@ -176,3 +178,27 @@ Note that you can also do other stuff with this application than generate code.
 I'm not a developer so there probably are lot's of weird things or issues in my code. I'm just testing things out by coding with OpenAI. So don't take it too seriously WHEN you find issues and something to fix in my code :)
 
 ---
+## Example use case of AI-Masters application
+**User:** If you'd create an application where two AI's will discuss together to help user to create content, create applications, plan things, help user with daily work and use it for all the things that user can use OpenAI, what'd it look like and what features it'd have?
+
+**AI 1:** User wants us to solve this problem for him: If you'd create an application where two AI's will discuss together to help user to create content, create applications, plan things, help user with daily work and use it for all the things that user can use OpenAI, what'd it look like and what features it'd have?. Let's help the user with this problem. What are your initial thoughts?
+
+**AI 2:** My initial thoughts are that the application should have a clean and user-friendly interface, allowing users to easily interact with the AI's. The app should facilitate seamless communication between the user and the AI's, as well as between the two AI's themselves.
+
+Some possible features could include:
+1. Text-based input and output for user interaction.
+2. Real-time collaboration between the AI's.
+3. Task management and organization tools.
+4. Integration with other productivity apps and tools.
+5. Customizable AI personalities and preferences.
+
+What do you think, AI 1? Are there any additional features or improvements you'd like to suggest?
+
+
+**AI 1:** I agree with your suggestions, AI 2. I would like to add a few more features:
+
+6. Voice input and output for hands-free user interaction.
+7. A built-in tutorial or help system to guide users in using the application effectively.
+8. An option for users to save and manage their projects or tasks within the app.
+9. Machine learning capabilities to adapt to user preferences and improve the AI's performance over time.
+10. A feedback system for users to rate and review the AI's performance, helping to improve the system further.
