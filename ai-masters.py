@@ -117,12 +117,17 @@ def validate_code(file_path):
         print("\nThe code in the 'generated_code.py' file is not valid.\n")
 
 
+def request_more_info(conversation):
+    conversation.append(
+        {"role": "assistant", "name": "AI_1", "content": "We need more information or clarification on this topic. Can you please provide more details?"})
+    print("\nAI 1: We need more information or clarification on this topic. Can you please provide more details?\n")
+
+
 def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1_api_key=None, ai2_api_base=None, ai2_api_key=None):
     start_time = time.time()
     duration = 0
     code_generated = False
 
-    # Initialize or clear the code file
     with open("generated_code.py", "w") as f:
         f.write("")
 
@@ -145,19 +150,25 @@ def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1
         print("\nAI 1: " + response1['choices']
               [0]['message']['content'] + "\n")
 
+        if "need more information" in response1['choices'][0]['message']['content'].lower():
+            request_more_info(conversation)
+            continue
+
         conv_history_tokens = num_tokens_from_messages(conversation)
         while (conv_history_tokens + max_response_tokens >= token_limit):
             del conversation[1]
             conv_history_tokens = num_tokens_from_messages(conversation)
 
-        # Use AI1's response as input for AI2
         response2 = ai2_response(conversation, ai2_api_base, ai2_api_key)
         conversation.append(
             {"role": "assistant", "name": "AI_2", "content": response2['choices'][0]['message']['content']})
         print("\nAI 2: " + response2['choices']
               [0]['message']['content'] + "\n")
 
-        # Check if the AI's response contains a search query
+        if "need more information" in response2['choices'][0]['message']['content'].lower():
+            request_more_info(conversation)
+            continue
+
         search_query = None
         if "search the web for" in response1['choices'][0]['message']['content'].lower():
             search_query = response1['choices'][0]['message']['content'].split(
@@ -166,7 +177,6 @@ def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1
             search_query = response2['choices'][0]['message']['content'].split(
                 "search the web for ")[1].split(".")[0]
 
-        # Perform the web search if a query was found
         if search_query:
             search_results = perform_web_search(search_query)
             search_results_str = "\n".join(search_results)
@@ -204,12 +214,10 @@ while (True):
     user_input = input("User: ")
     conversation.append({"role": "user", "content": user_input})
 
-    # Check if the user's input contains a search query
     search_query = None
     if "search the web for" in user_input.lower():
         search_query = user_input.split("search the web for ")[1].split(".")[0]
 
-    # Perform the web search if a query was found and append the results to the conversation
     if search_query:
         search_results = perform_web_search(search_query)
         search_results_str = "\n".join(search_results)
