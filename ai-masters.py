@@ -8,14 +8,15 @@ import subprocess
 from googlesearch import search
 import re
 
+# Set model and API information
 #model = "gpt-35-turbo-version-0301"
 model = "gpt-4-32k"
 openai.api_type = "azure"
 openai.api_version = "2023-03-15-preview"
 AI1_API_BASE = os.getenv("GPT_API_ENDPOINT")
 AI1_API_KEY = os.getenv("GPT_API_KEY")
-AI2_API_BASE = os.getenv("GPT-API-ENDPOINT2")
-AI2_API_KEY = os.getenv("GPT-API-KEY2")
+AI2_API_BASE = os.getenv("GPT_API_ENDPOINT2")
+AI2_API_KEY = os.getenv("GPT_API_KEY2")
 
 AZURE_LANGUAGE_ENDPOINT = os.getenv("AZURE_LANGUAGE_ENDPOINT")
 AZURE_LANGUAGE_KEY = os.getenv("AZURE_LANGUAGE_KEY")
@@ -29,7 +30,7 @@ conversation = []
 conversation.append(system_message1)
 conversation.append(system_message2)
 
-
+# Function to analyze content and suggest changes
 def analyze_and_suggest_changes(file_paths, conversation):
     file_contents = []
     for file_path in file_paths:
@@ -51,12 +52,13 @@ def analyze_and_suggest_changes(file_paths, conversation):
 
     return suggestions
 
-
+# Function to write suggestions to a file
 def write_suggestions_to_file(suggestions, output_file):
     with open(output_file, "w") as f:
         for suggestion in suggestions:
             f.write(suggestion + "\n")
 
+# Function to perform a web search
 def perform_web_search(query, num_results=5):
     search_results = []
     try:
@@ -66,14 +68,14 @@ def perform_web_search(query, num_results=5):
         print(f"Error while performing web search: {e}")
     return search_results
 
-
+# Function to authenticate the Azure language client
 def authenticate_language_client():
     ta_credential = AzureKeyCredential(AZURE_LANGUAGE_KEY)
     language_client = TextAnalyticsClient(
         endpoint=AZURE_LANGUAGE_ENDPOINT, credential=ta_credential)
     return language_client
 
-
+# Function to extract key phrases from a document
 def extract_key_phrases(client, document):
     response = client.extract_key_phrases(
         documents=[{"id": "1", "text": document}])[0]
@@ -82,17 +84,17 @@ def extract_key_phrases(client, document):
     else:
         return []
 
-
+# Function to append code to a file
 def append_code_to_file(code, file_path):
     with open(file_path, "a") as f:
         f.write(code + "\n")
 
-
+# Function to read code from a file
 def read_code_from_file(file_path):
     with open(file_path, "r") as f:
         return f.read()
 
-
+# Function to calculate the number of tokens in messages
 def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301"):
     encoding = tiktoken.encoding_for_model(model)
     num_tokens = 0
@@ -105,10 +107,17 @@ def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301"):
     num_tokens += 2
     return num_tokens
 
+# Function to perform a conversation loop between two AIs
+def ai_response(conversation, role, ai1_api_base, ai1_api_key, ai2_api_base, ai2_api_key):
+    if role == "AI_1":
+        openai.api_base = ai1_api_base
+        openai.api_key = ai1_api_key
+    elif role == "AI_2":
+        openai.api_base = ai2_api_base
+        openai.api_key = ai2_api_key
+    else:
+        raise ValueError("Invalid role. Role should be 'AI_1' or 'AI_2'.")
 
-def ai1_response(conversation, AI1_API_BASE, AI1_API_KEY):
-    openai.api_base = AI1_API_BASE
-    openai.api_key = AI1_API_KEY
     response = openai.ChatCompletion.create(
         engine=model,
         messages=conversation,
@@ -117,26 +126,14 @@ def ai1_response(conversation, AI1_API_BASE, AI1_API_KEY):
     )
     return response
 
-
-def ai2_response(conversation, AI2_API_BASE, AI2_API_KEY):
-    openai.api_base = AI2_API_BASE
-    openai.api_key = AI2_API_KEY
-    response = openai.ChatCompletion.create(
-        engine=model,
-        messages=conversation,
-        temperature=.7,
-        max_tokens=max_response_tokens,
-    )
-    return response
-
-
+# Function to extract Python code from a response content string
 def extract_code(response_content):
     if "```python" in response_content:
         code = response_content.split("```python")[1].split("```")[0].strip()
         return code
     return None
 
-
+# Function to validate code.
 def validate_code(file_path):
     try:
         subprocess.check_output(["python", file_path])
@@ -144,13 +141,13 @@ def validate_code(file_path):
     except subprocess.CalledProcessError as e:
         print("\nThe code in the 'generated_code.py' file is not valid.\n")
 
-
+# Function to request more information from the user
 def request_more_info(conversation):
     conversation.append(
         {"role": "assistant", "name": "AI_1", "content": "We need more information or clarification on this topic. Can you please provide more details?"})
     print("\nAI 1: We need more information or clarification on this topic. Can you please provide more details?\n")
 
-
+# Function to save code to a file
 def save_code_to_file(code, file_path):
     try:
         with open(file_path, "w") as f:
@@ -158,17 +155,16 @@ def save_code_to_file(code, file_path):
     except Exception as e:
         print(f"Error saving code to file: {e}")
 
-
-def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1_api_key=None, ai2_api_base=None, ai2_api_key=None):
+# Function to generate a conversation between AI_1 and AI_2
+def ai_conversation_loop(conversation, max_duration=600, ai1_api_base=None, ai1_api_key=None, ai2_api_base=None, ai2_api_key=None):
     start_time = time.time()
     duration = 0
     search_query = None
 
     if conversation[-1]["role"] == "user":
         user_message = conversation[-1]["content"]
-        custom_message = f"Hey AI_2, user wants us to solve this problem for him: {user_message}. Let's help the user with this problem. What are your initial thoughts?"
-        conversation.append(
-            {"role": "assistant", "name": "AI_1", "content": custom_message})
+        custom_message = f"User wants us to solve this problem for him: {user_message}. Let's help the user with this problem. What are your initial thoughts?"
+        conversation.append({"role": "assistant", "name": "AI_1", "content": custom_message})
         print("\nAI 1: " + custom_message + "\n")
 
     while duration < max_duration:
@@ -177,22 +173,28 @@ def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1
             del conversation[1]
             conv_history_tokens = num_tokens_from_messages(conversation)
 
-        response1 = ai1_response(conversation, ai1_api_base, ai1_api_key)
-        conversation.append(
-            {"role": "assistant", "name": "AI_1", "content": response1['choices'][0]['message']['content']})
-        print("\nAI 1: " + response1['choices']
-              [0]['message']['content'] + "\n")
+        response1 = ai_response(
+            conversation, "AI_1", ai1_api_base, ai1_api_key, ai2_api_base, ai2_api_key)
+
+        conversation.append({"role": "assistant", "name": "AI_1",
+                            "content": response1['choices'][0]['message']['content']})
+
+
+        print("\nAI 1: " + response1['choices'][0]['message']['content'] + "\n")
 
         conv_history_tokens = num_tokens_from_messages(conversation)
         while (conv_history_tokens + max_response_tokens >= token_limit):
             del conversation[1]
             conv_history_tokens = num_tokens_from_messages(conversation)
 
-        response2 = ai2_response(conversation, ai2_api_base, ai2_api_key)
-        conversation.append(
-            {"role": "assistant", "name": "AI_2", "content": response2['choices'][0]['message']['content']})
-        print("\nAI 2: " + response2['choices']
-              [0]['message']['content'] + "\n")
+        response2 = ai_response(
+            conversation, "AI_2", ai1_api_base, ai1_api_key, ai2_api_base, ai2_api_key)
+
+        conversation.append({"role": "assistant", "name": "AI_2",
+                            "content": response2['choices'][0]['message']['content']})
+
+
+        print("\nAI 2: " + response2['choices'][0]['message']['content'] + "\n")
 
         duration = time.time() - start_time
 
@@ -212,9 +214,11 @@ def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1
 
 
 
-
+# Function to append code to a file
 while (True):
     user_input = input("User: ")
+    user_instruction = "AI 1 and AI 2, please discuss the following topic without quoting each other's messages: "
+    user_input_with_instruction = user_instruction + user_input
     conversation.append({"role": "user", "content": user_input})
 
     search_query = None
