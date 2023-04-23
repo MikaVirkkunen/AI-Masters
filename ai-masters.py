@@ -9,7 +9,7 @@ from googlesearch import search
 import re
 
 # Set model and API information
-#model = "gpt-35-turbo-version-0301"
+# model = "gpt-35-turbo-version-0301"
 model = "gpt-4-32k"
 openai.api_type = "azure"
 openai.api_version = "2023-03-15-preview"
@@ -31,6 +31,8 @@ conversation.append(system_message1)
 conversation.append(system_message2)
 
 # Function to analyze content and suggest changes
+
+
 def analyze_and_suggest_changes(file_paths, conversation):
     file_contents = []
     for file_path in file_paths:
@@ -53,12 +55,16 @@ def analyze_and_suggest_changes(file_paths, conversation):
     return suggestions
 
 # Function to write suggestions to a file
+
+
 def write_suggestions_to_file(suggestions, output_file):
     with open(output_file, "w") as f:
         for suggestion in suggestions:
             f.write(suggestion + "\n")
 
 # Function to perform a web search
+
+
 def perform_web_search(query, num_results=5):
     search_results = []
     try:
@@ -69,6 +75,8 @@ def perform_web_search(query, num_results=5):
     return search_results
 
 # Function to authenticate the Azure language client
+
+
 def authenticate_language_client():
     ta_credential = AzureKeyCredential(AZURE_LANGUAGE_KEY)
     language_client = TextAnalyticsClient(
@@ -76,6 +84,8 @@ def authenticate_language_client():
     return language_client
 
 # Function to extract key phrases from a document
+
+
 def extract_key_phrases(client, document):
     response = client.extract_key_phrases(
         documents=[{"id": "1", "text": document}])[0]
@@ -85,16 +95,22 @@ def extract_key_phrases(client, document):
         return []
 
 # Function to append code to a file
+
+
 def append_code_to_file(code, file_path):
     with open(file_path, "a") as f:
         f.write(code + "\n")
 
 # Function to read code from a file
+
+
 def read_code_from_file(file_path):
     with open(file_path, "r") as f:
         return f.read()
 
 # Function to calculate the number of tokens in messages
+
+
 def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301"):
     encoding = tiktoken.encoding_for_model(model)
     num_tokens = 0
@@ -108,6 +124,8 @@ def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301"):
     return num_tokens
 
 # Function to perform a conversation loop between two AIs
+
+
 def ai_response(conversation, role, ai1_api_base, ai1_api_key, ai2_api_base, ai2_api_key):
     if role == "AI_1":
         openai.api_base = ai1_api_base
@@ -124,9 +142,14 @@ def ai_response(conversation, role, ai1_api_base, ai1_api_key, ai2_api_base, ai2
         temperature=0.5,
         max_tokens=max_response_tokens,
     )
-    return response
+
+    response_content = response['choices'][0]['message']['content']
+
+    return response_content
 
 # Function to extract Python code from a response content string
+
+
 def extract_code(response_content):
     if "```python" in response_content:
         code = response_content.split("```python")[1].split("```")[0].strip()
@@ -134,6 +157,8 @@ def extract_code(response_content):
     return None
 
 # Function to validate code.
+
+
 def validate_code(file_path):
     try:
         subprocess.check_output(["python", file_path])
@@ -142,12 +167,16 @@ def validate_code(file_path):
         print("\nThe code in the 'generated_code.py' file is not valid.\n")
 
 # Function to request more information from the user
+
+
 def request_more_info(conversation):
     conversation.append(
-        {"role": "assistant", "name": "AI_1", "content": "We need more information or clarification on this topic. Can you please provide more details?"})
-    print("\nAI 1: We need more information or clarification on this topic. Can you please provide more details?\n")
+        {"role": "assistant", "content": "We need more information or clarification on this topic. Can you please provide more details?"})
+    print("\nWe need more information or clarification on this topic. Can you please provide more details?\n")
 
 # Function to save code to a file
+
+
 def save_code_to_file(code, file_path):
     try:
         with open(file_path, "w") as f:
@@ -156,6 +185,8 @@ def save_code_to_file(code, file_path):
         print(f"Error saving code to file: {e}")
 
 # Function to generate a conversation between AI_1 and AI_2
+
+
 def ai_conversation_loop(conversation, max_duration=600, ai1_api_base=None, ai1_api_key=None, ai2_api_base=None, ai2_api_key=None):
     start_time = time.time()
     duration = 0
@@ -164,8 +195,9 @@ def ai_conversation_loop(conversation, max_duration=600, ai1_api_base=None, ai1_
     if conversation[-1]["role"] == "user":
         user_message = conversation[-1]["content"]
         custom_message = f"User wants us to solve this problem for him: {user_message}. Let's help the user with this problem. What are your initial thoughts?"
-        conversation.append({"role": "assistant", "name": "AI_1", "content": custom_message})
-        print("\nAI 1: " + custom_message + "\n")
+        conversation.append(
+            {"role": "assistant", "content": custom_message})
+        print("\n" + custom_message + "\n")
 
     while duration < max_duration:
         conv_history_tokens = num_tokens_from_messages(conversation)
@@ -173,45 +205,38 @@ def ai_conversation_loop(conversation, max_duration=600, ai1_api_base=None, ai1_
             del conversation[1]
             conv_history_tokens = num_tokens_from_messages(conversation)
 
-        response1 = ai_response(
+        response1_content = ai_response(
             conversation, "AI_1", ai1_api_base, ai1_api_key, ai2_api_base, ai2_api_key)
-
-        conversation.append({"role": "assistant", "name": "AI_1",
-                            "content": response1['choices'][0]['message']['content']})
-
-
-        print("\nAI 1: " + response1['choices'][0]['message']['content'] + "\n")
+        conversation.append(
+            {"role": "assistant", "content": response1_content})
+        print("\n" + response1_content + "\n")
 
         conv_history_tokens = num_tokens_from_messages(conversation)
         while (conv_history_tokens + max_response_tokens >= token_limit):
             del conversation[1]
             conv_history_tokens = num_tokens_from_messages(conversation)
 
-        response2 = ai_response(
+        response2_content = ai_response(
             conversation, "AI_2", ai1_api_base, ai1_api_key, ai2_api_base, ai2_api_key)
-
-        conversation.append({"role": "assistant", "name": "AI_2",
-                            "content": response2['choices'][0]['message']['content']})
-
-
-        print("\nAI 2: " + response2['choices'][0]['message']['content'] + "\n")
+        conversation.append(
+            {"role": "assistant", "content": response2_content})
+        print("\n" + response2_content + "\n")
 
         duration = time.time() - start_time
 
         # Check if both AI instances have generated Python code
-        code1 = extract_code(response1['choices'][0]['message']['content'])
-        code2 = extract_code(response2['choices'][0]['message']['content'])
+        code1 = extract_code(response1_content)
+        code2 = extract_code(response2_content)
 
         if code1:
             append_code_to_file(code1, "generated_code.py")
         if code2:
             append_code_to_file(code2, "generated_code.py")
 
-        if "ready" in response1['choices'][0]['message']['content'].lower() and "ready" in response2['choices'][0]['message']['content'].lower():
+        if "ready" in response1_content.lower() and "ready" in response2_content.lower():
             break
 
     return conversation, search_query
-
 
 
 # Function to append code to a file
@@ -228,10 +253,10 @@ while (True):
     if search_query:
         search_results = perform_web_search(search_query)
         search_results_str = "\n".join(search_results)
-        conversation.append({"role": "assistant", "name": "AI_1",
+        conversation.append({"role": "assistant",
                             "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
         print(
-            f"\nAI 1: I found the following results for your search query '{search_query}':\n{search_results_str}\n")
+            f"\nI found the following results for your search query '{search_query}':\n{search_results_str}\n")
 
     # Add the if "analyze" condition here
     if "analyze" in user_input.lower() and "suggest changes" in user_input.lower():
@@ -246,7 +271,7 @@ while (True):
     if search_query:
         search_results = perform_web_search(search_query)
         search_results_str = "\n".join(search_results)
-        conversation.append({"role": "assistant", "name": "AI_1",
+        conversation.append({"role": "assistant",
                             "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
         print(
-            f"\nAI 1: I found the following results for your search query '{search_query}':\n{search_results_str}\n")
+            f"\nI found the following results for your search query '{search_query}':\n{search_results_str}\n")
