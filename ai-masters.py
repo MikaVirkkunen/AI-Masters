@@ -7,7 +7,6 @@ from azure.core.credentials import AzureKeyCredential
 import subprocess
 from googlesearch import search
 
-
 model = "gpt-35-turbo-version-0301"
 # model = "gpt-4-32k"
 openai.api_type = "azure"
@@ -20,10 +19,8 @@ AI2_API_KEY = os.getenv("GPT-API-KEY2")
 AZURE_LANGUAGE_ENDPOINT = os.getenv("AZURE_LANGUAGE_ENDPOINT")
 AZURE_LANGUAGE_KEY = os.getenv("AZURE_LANGUAGE_KEY")
 
-# system_message1 = {"role": "system", "content": "You are an AI number 1. You task is to handle user problems together with AI number 2. Plan together how to solve user problem, suggest ideas to each others, validate others ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. If you need to write code validate that it does what user asked it to do. If not. continue developing it. Double check the code at the end that it's correct. You can also search answers from the internet."}
-# system_message2 = {"role": "system", "content": "You are an AI number 2. You task is to handle user problems together with AI number 1. Plan together how to solve user problem, suggest ideas to each others, validate others ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. If you need to write code validate that it does what user asked it to do. If not. continue developing it. double check the code at the end that it's correct. You can also search answers from the internet."}
-system_message1 = {"role": "system", "content": "You are an AI number 1. You task is to handle user problems together with AI number 2. Plan together how to solve user problem, suggest ideas to each others, validate others ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for."}
-system_message2 = {"role": "system", "content": "You are an AI number 2. You task is to handle user problems together with AI number 1. Plan together how to solve user problem, suggest ideas to each others, validate others ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for."}
+system_message1 = {"role": "system", "content": "You are AI 1. Remember, you are AI 1 and not AI 2. Your task is to handle user problems together with AI 2. Always address each other as AI 1 and AI 2. Plan together how to solve user problem, suggest ideas to each other, validate each other's ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for. Always wait until other AI has responsed so don't response two times in a row."}
+system_message2 = {"role": "system", "content": "You are AI 2. Remember, you are AI 2 and not AI 1. Your task is to handle user problems together with AI 1. Always address each other as AI 2 and AI 1. Plan together how to solve user problem, suggest ideas to each other, validate each other's ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for. Always wait until other AI has responsed so don't response two times in a row."}
 
 max_response_tokens = 4000
 token_limit = 32000
@@ -40,7 +37,6 @@ def perform_web_search(query, num_results=5):
     except Exception as e:
         print(f"Error while performing web search: {e}")
     return search_results
-
 
 
 def authenticate_language_client():
@@ -88,7 +84,7 @@ def ai1_response(conversation, AI1_API_BASE, AI1_API_KEY):
     response = openai.ChatCompletion.create(
         engine=model,
         messages=conversation,
-        temperature=.7,
+        temperature=0.5,
         max_tokens=max_response_tokens,
     )
     return response
@@ -111,6 +107,7 @@ def extract_code(response_content):
         code = response_content.split("```python")[1].split("```")[0].strip()
         return code
     return None
+
 
 def validate_code(file_path):
     try:
@@ -227,5 +224,7 @@ while (True):
     if search_query:
         search_results = perform_web_search(search_query)
         search_results_str = "\n".join(search_results)
-        conversation.append({"role": "assistant", "name": "AI_1", "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
-        print(f"\nAI 1: I found the following results for your search query '{search_query}':\n{search_results_str}\n")
+        conversation.append({"role": "assistant", "name": "AI_1",
+                            "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
+        print(
+            f"\nAI 1: I found the following results for your search query '{search_query}':\n{search_results_str}\n")
