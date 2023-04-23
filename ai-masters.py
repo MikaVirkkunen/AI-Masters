@@ -6,9 +6,10 @@ from azure.ai.textanalytics import TextAnalyticsClient
 from azure.core.credentials import AzureKeyCredential
 import subprocess
 from googlesearch import search
+import re
 
-model = "gpt-35-turbo-version-0301"
-# model = "gpt-4-32k"
+# model = "gpt-35-turbo-version-0301"
+model = "gpt-4-32k"
 openai.api_type = "azure"
 openai.api_version = "2023-03-15-preview"
 AI1_API_BASE = os.getenv("GPT_API_ENDPOINT")
@@ -28,6 +29,33 @@ conversation = []
 conversation.append(system_message1)
 conversation.append(system_message2)
 
+
+def analyze_and_suggest_changes(file_paths, conversation):
+    file_contents = []
+    for file_path in file_paths:
+        with open(file_path, "r") as f:
+            file_contents.append(f.read())
+
+    file_content_str = "\n\n".join(file_contents)
+    conversation.append(
+        {"role": "user", "content": f"Analyze the following content and suggest changes: {file_content_str}"})
+
+    conversation, _ = ai_conversation_loop(
+        conversation, ai1_api_base=AI1_API_BASE, ai1_api_key=AI1_API_KEY, ai2_api_base=AI2_API_BASE, ai2_api_key=AI2_API_KEY)
+
+    suggestions = []
+    for message in conversation:
+        if message["role"] == "assistant" and "suggestion:" in message["content"].lower():
+            suggestion = message["content"].split("Suggestion:")[1].strip()
+            suggestions.append(suggestion)
+
+    return suggestions
+
+
+def write_suggestions_to_file(suggestions, output_file):
+    with open(output_file, "w") as f:
+        for suggestion in suggestions:
+            f.write(suggestion + "\n")
 
 def perform_web_search(query, num_results=5):
     search_results = []
@@ -123,13 +151,18 @@ def request_more_info(conversation):
     print("\nAI 1: We need more information or clarification on this topic. Can you please provide more details?\n")
 
 
+def save_code_to_file(code, file_path):
+    try:
+        with open(file_path, "w") as f:
+            f.write(code)
+    except Exception as e:
+        print(f"Error saving code to file: {e}")
+
+
 def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1_api_key=None, ai2_api_base=None, ai2_api_key=None):
     start_time = time.time()
     duration = 0
-    code_generated = False
-
-    with open("generated_code.py", "w") as f:
-        f.write("")
+    search_query = None
 
     if conversation[-1]["role"] == "user":
         user_message = conversation[-1]["content"]
@@ -150,10 +183,6 @@ def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1
         print("\nAI 1: " + response1['choices']
               [0]['message']['content'] + "\n")
 
-        if "need more information" in response1['choices'][0]['message']['content'].lower():
-            request_more_info(conversation)
-            continue
-
         conv_history_tokens = num_tokens_from_messages(conversation)
         while (conv_history_tokens + max_response_tokens >= token_limit):
             del conversation[1]
@@ -165,49 +194,23 @@ def ai_conversation_loop(conversation, max_duration=1200, ai1_api_base=None, ai1
         print("\nAI 2: " + response2['choices']
               [0]['message']['content'] + "\n")
 
-        if "need more information" in response2['choices'][0]['message']['content'].lower():
-            request_more_info(conversation)
-            continue
-
-        search_query = None
-        if "search the web for" in response1['choices'][0]['message']['content'].lower():
-            search_query = response1['choices'][0]['message']['content'].split(
-                "search the web for ")[1].split(".")[0]
-        elif "search the web for" in response2['choices'][0]['message']['content'].lower():
-            search_query = response2['choices'][0]['message']['content'].split(
-                "search the web for ")[1].split(".")[0]
-
-        if search_query:
-            search_results = perform_web_search(search_query)
-            search_results_str = "\n".join(search_results)
-            conversation.append({"role": "assistant", "name": "AI_1",
-                                "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
-            print(
-                f"\nAI 1: I found the following results for your search query '{search_query}':\n{search_results_str}\n")
-
         duration = time.time() - start_time
-        code1 = None
-        code2 = None
-        if "```python" in response1['choices'][0]['message']['content']:
-            code1 = extract_code(response1['choices'][0]['message']['content'])
-        if code1:
-            existing_code = read_code_from_file("generated_code.py")
-            if code1 not in existing_code:
-                append_code_to_file(code1, "generated_code.py")
-                code_generated = True
 
+        # Check if both AI instances have generated Python code
+        code1 = extract_code(response1['choices'][0]['message']['content'])
         code2 = extract_code(response2['choices'][0]['message']['content'])
-        if code2:
-            existing_code = read_code_from_file("generated_code.py")
-            if code2 not in existing_code:
-                append_code_to_file(code2, "generated_code.py")
-                code_generated = True
 
-        if code_generated and "ready" in response1['choices'][0]['message']['content'].lower() and "ready" in response2['choices'][0]['message']['content'].lower():
-            validate_code("generated_code.py")
+        if code1:
+            append_code_to_file(code1, "generated_code.py")
+        if code2:
+            append_code_to_file(code2, "generated_code.py")
+
+        if "ready" in response1['choices'][0]['message']['content'].lower() and "ready" in response2['choices'][0]['message']['content'].lower():
             break
 
     return conversation, search_query
+
+
 
 
 while (True):
@@ -225,6 +228,13 @@ while (True):
                             "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
         print(
             f"\nAI 1: I found the following results for your search query '{search_query}':\n{search_results_str}\n")
+
+    # Add the if "analyze" condition here
+    if "analyze" in user_input.lower() and "suggest changes" in user_input.lower():
+        file_paths = re.findall(r'\b[\w-]+\.\w+', user_input)
+        suggestions = analyze_and_suggest_changes(file_paths, conversation)
+        write_suggestions_to_file(suggestions, "suggestions.txt")
+        print("Suggestions have been written to 'suggestions.txt'")
 
     conversation, search_query = ai_conversation_loop(
         conversation, ai1_api_base=AI1_API_BASE, ai1_api_key=AI1_API_KEY, ai2_api_base=AI2_API_BASE, ai2_api_key=AI2_API_KEY)
