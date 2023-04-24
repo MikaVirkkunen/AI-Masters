@@ -1,6 +1,6 @@
 # AI Collaboration Tool
 
-This script is an AI Collaboration Tool that utilizes two AI instances to work together in solving problems, suggesting ideas, validating each other's solutions, and generating Python code based on user input.
+This application is an AI Collaboration Tool that utilizes two AI instances to work together in solving problems, suggesting ideas, validating each other's solutions, and generating Python code based on user input.
 
 ## Benefits of using two AI's
 **AI 1:** User wants us to solve this problem for him: What's the benefit for application where two OpenAI based AI's are talking with each others to solve user problems compared to just one AI instance? Let's help the user with this problem. What are your initial thoughts?
