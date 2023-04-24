@@ -178,7 +178,20 @@ Note that you can also do other stuff with this application than generate code.
 I'm not a developer so there probably are lot's of weird things or issues in my code. I'm just testing things out by coding with OpenAI. So don't take it too seriously WHEN you find issues and something to fix in my code :)
 
 ---
-## Example use case of AI-Masters application
+# Usage Examples
+## Create Python application
+You can use it to create custom applications for you
+* Example prompt: "Create a python based application that reads all azure resources from subscription with resource graph query."
+* It'll generate code into generated_code.py file
+
+## Azure infra
+You can use it to plan demos if you're e.g. planning customer related trainings
+* Example prompt: "Plan 10 demos for Azure ARC training"
+
+## Web search
+You can search info that has happened after the gpt-3.5 or gpt-4 model training days back in 09/2021
+* Example prompt: "search the web for Azure Firewall Explicit proxy"
+## Example use case output
 **User:** If you'd create an application where two AI's will discuss together to help user to create content, create applications, plan things, help user with daily work and use it for all the things that user can use OpenAI, what'd it look like and what features it'd have?
 
 **AI 1:** User wants us to solve this problem for him: If you'd create an application where two AI's will discuss together to help user to create content, create applications, plan things, help user with daily work and use it for all the things that user can use OpenAI, what'd it look like and what features it'd have?. Let's help the user with this problem. What are your initial thoughts?
@@ -202,3 +215,7 @@ What do you think, AI 1? Are there any additional features or improvements you'd
 8. An option for users to save and manage their projects or tasks within the app.
 9. Machine learning capabilities to adapt to user preferences and improve the AI's performance over time.
 10. A feedback system for users to rate and review the AI's performance, helping to improve the system further.
+
+## Analyze local files
+You can use it to analyse local files
+* Example prompt: "Analyze the following content and suggest changes: ai-masters.py"

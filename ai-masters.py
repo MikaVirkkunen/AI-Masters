@@ -23,8 +23,8 @@ AI2_API_KEY = os.getenv("GPT_API_KEY2")
 AZURE_LANGUAGE_ENDPOINT = os.getenv("AZURE_LANGUAGE_ENDPOINT")
 AZURE_LANGUAGE_KEY = os.getenv("AZURE_LANGUAGE_KEY")
 
-system_message1 = {"role": "system", "content": "You are AI 1. Remember, you are AI 1 and not AI 2. Your task is to handle user problems together with AI 2. Always address each other as AI 1 and AI 2. Plan together how to solve user problem, suggest ideas to each other, validate each other's ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for. Always wait until other AI has responsed so don't response two times in a row. When you're ready, say nothing else but: AI has left the building."}
-system_message2 = {"role": "system", "content": "You are AI 2. Remember, you are AI 2 and not AI 1. Your task is to handle user problems together with AI 1. Always address each other as AI 2 and AI 1. Plan together how to solve user problem, suggest ideas to each other, validate each other's ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for. Always wait until other AI has responsed so don't response two times in a row. When you're ready, say nothing else but: AI has left the building."}
+system_message1 = {"role": "system", "content": "You are AI 1. Remember, you are AI 1 and not AI 2. Your task is to handle user problems together with AI 2. Always address each other as AI 1 and AI 2. Plan together how to solve user problem, suggest ideas to each other, validate each other's ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for. Always wait until other AI has responsed so don't response two times in a row. When you're ready, say nothing else but: AI has left the building. If you have any follow up questions to user or want user input just say: User, what do you think about this."}
+system_message2 = {"role": "system", "content": "You are AI 2. Remember, you are AI 2 and not AI 1. Your task is to handle user problems together with AI 1. Always address each other as AI 2 and AI 1. Plan together how to solve user problem, suggest ideas to each other, validate each other's ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for. Always wait until other AI has responsed so don't response two times in a row. When you're ready, say nothing else but: AI has left the building. If you have any follow up questions to user or want user input just say: User, what do you think about this."}
 
 max_response_tokens = 4000
 token_limit = 32000
@@ -241,6 +241,11 @@ def ai_conversation_loop(conversation, max_duration=600, ai1_api_base=None, ai1_
         if check_exit_condition(conversation):
             break
 
+        # If AI 1 asks for the user's opinion, prompt the user for input
+        if "User, what do you think about this" in response1_content:
+            user_input = input("User: ")
+            conversation.append({"role": "user", "content": user_input})
+
         conv_history_tokens = num_tokens_from_messages(conversation)
         while (conv_history_tokens + max_response_tokens >= token_limit):
             del conversation[1]
@@ -254,6 +259,11 @@ def ai_conversation_loop(conversation, max_duration=600, ai1_api_base=None, ai1_
 
         if check_exit_condition(conversation):
             break
+
+        # If AI 2 asks for the user's opinion, prompt the user for input
+        if "User, what do you think about this" in response2_content:
+            user_input = input("User: ")
+            conversation.append({"role": "user", "content": user_input})
 
         duration = time.time() - start_time
 
@@ -270,6 +280,7 @@ def ai_conversation_loop(conversation, max_duration=600, ai1_api_base=None, ai1_
             break
 
     return conversation, search_query
+
 
 
 
@@ -298,8 +309,13 @@ while (True):
     if "analyze" in user_input.lower() and "suggest changes" in user_input.lower():
         file_paths = re.findall(r'\b[\w-]+\.\w+', user_input)
         suggestions = analyze_and_suggest_changes(file_paths, conversation)
-        write_suggestions_to_file(suggestions, "suggestions.txt")
-        print("Suggestions have been written to 'suggestions.txt'")
+        if suggestions:
+            print("Suggestions:")
+            for suggestion in suggestions:
+                print(f"- {suggestion}")
+        else:
+            print("No suggestions found.")
+
 
     conversation, search_query = ai_conversation_loop(
         conversation, ai1_api_base=AI1_API_BASE, ai1_api_key=AI1_API_KEY, ai2_api_base=AI2_API_BASE, ai2_api_key=AI2_API_KEY)
