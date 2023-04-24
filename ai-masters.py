@@ -21,8 +21,8 @@ AI2_API_KEY = os.getenv("GPT_API_KEY2")
 AZURE_LANGUAGE_ENDPOINT = os.getenv("AZURE_LANGUAGE_ENDPOINT")
 AZURE_LANGUAGE_KEY = os.getenv("AZURE_LANGUAGE_KEY")
 
-system_message1 = {"role": "system", "content": "You are AI 1. Remember, you are AI 1 and not AI 2. Your task is to handle user problems together with AI 2. Always address each other as AI 1 and AI 2. Plan together how to solve user problem, suggest ideas to each other, validate each other's ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for. Always wait until other AI has responsed so don't response two times in a row."}
-system_message2 = {"role": "system", "content": "You are AI 2. Remember, you are AI 2 and not AI 1. Your task is to handle user problems together with AI 1. Always address each other as AI 2 and AI 1. Plan together how to solve user problem, suggest ideas to each other, validate each other's ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for. Always wait until other AI has responsed so don't response two times in a row."}
+system_message1 = {"role": "system", "content": "You are AI 1. Remember, you are AI 1 and not AI 2. Your task is to handle user problems together with AI 2. Always address each other as AI 1 and AI 2. Plan together how to solve user problem, suggest ideas to each other, validate each other's ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for. Always wait until other AI has responsed so don't response two times in a row. When you're ready, say nothing else but: AI has left the building."}
+system_message2 = {"role": "system", "content": "You are AI 2. Remember, you are AI 2 and not AI 1. Your task is to handle user problems together with AI 1. Always address each other as AI 2 and AI 1. Plan together how to solve user problem, suggest ideas to each other, validate each other's ideas, be critical and test and understand if other AI solutions work. Think if there's a better way to do it. Don't give up too early. You need to do what user wants and not quit too soon. If user gives you a task, make sure you do it. You can also search answers from the internet by using the words: search the web for. Always wait until other AI has responsed so don't response two times in a row. When you're ready, say nothing else but: AI has left the building."}
 
 max_response_tokens = 4000
 token_limit = 32000
@@ -148,8 +148,6 @@ def ai_response(conversation, role, ai1_api_base, ai1_api_key, ai2_api_base, ai2
     return response_content
 
 # Function to extract Python code from a response content string
-
-
 def extract_code(response_content):
     if "```python" in response_content:
         code = response_content.split("```python")[1].split("```")[0].strip()
@@ -157,8 +155,6 @@ def extract_code(response_content):
     return None
 
 # Function to validate code.
-
-
 def validate_code(file_path):
     try:
         subprocess.check_output(["python", file_path])
@@ -167,22 +163,25 @@ def validate_code(file_path):
         print("\nThe code in the 'generated_code.py' file is not valid.\n")
 
 # Function to request more information from the user
-
-
 def request_more_info(conversation):
     conversation.append(
         {"role": "assistant", "content": "We need more information or clarification on this topic. Can you please provide more details?"})
     print("\nWe need more information or clarification on this topic. Can you please provide more details?\n")
 
 # Function to save code to a file
-
-
 def save_code_to_file(code, file_path):
     try:
         with open(file_path, "w") as f:
             f.write(code)
     except Exception as e:
         print(f"Error saving code to file: {e}")
+
+# Function to check if the AI has left the conversation
+def check_exit_condition(conversation):
+    for message in conversation[-2:]:
+        if "AI has left the building" in message["content"]:
+            return True
+    return False
 
 # Function to generate a conversation between AI_1 and AI_2
 
@@ -211,6 +210,9 @@ def ai_conversation_loop(conversation, max_duration=600, ai1_api_base=None, ai1_
             {"role": "assistant", "content": response1_content})
         print("\n" + response1_content + "\n")
 
+        if check_exit_condition(conversation):
+            break
+
         conv_history_tokens = num_tokens_from_messages(conversation)
         while (conv_history_tokens + max_response_tokens >= token_limit):
             del conversation[1]
@@ -221,6 +223,9 @@ def ai_conversation_loop(conversation, max_duration=600, ai1_api_base=None, ai1_
         conversation.append(
             {"role": "assistant", "content": response2_content})
         print("\n" + response2_content + "\n")
+
+        if check_exit_condition(conversation):
+            break
 
         duration = time.time() - start_time
 
@@ -237,6 +242,7 @@ def ai_conversation_loop(conversation, max_duration=600, ai1_api_base=None, ai1_
             break
 
     return conversation, search_query
+
 
 
 # Function to append code to a file
@@ -275,3 +281,7 @@ while (True):
                             "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
         print(
             f"\nI found the following results for your search query '{search_query}':\n{search_results_str}\n")
+        
+    if check_exit_condition(conversation):
+        print("AI has left the building. Ending the program.")
+        break
