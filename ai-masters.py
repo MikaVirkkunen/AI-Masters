@@ -7,6 +7,8 @@ from azure.core.credentials import AzureKeyCredential
 import subprocess
 from googlesearch import search
 import re
+import requests
+from bs4 import BeautifulSoup
 
 # Set model and API information
 # model = "gpt-35-turbo-version-0301"
@@ -30,9 +32,30 @@ conversation = []
 conversation.append(system_message1)
 conversation.append(system_message2)
 
+# Function to extract the main text from a URL
+def extract_info(url):
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Extract the main text from paragraphs
+            paragraphs = soup.find_all('p')
+            main_text = ' '.join([p.get_text() for p in paragraphs])
+
+            if main_text:
+                return main_text[:200]  # Return only the first 200 characters
+            else:
+                return None
+        else:
+            print(f"Request failed with status code {response.status_code}")
+            return None
+
+    except Exception as e:
+        print(f"Error while extracting information from the URL: {e}")
+        return None
+
 # Function to analyze content and suggest changes
-
-
 def analyze_and_suggest_changes(file_paths, conversation):
     file_contents = []
     for file_path in file_paths:
@@ -69,10 +92,15 @@ def perform_web_search(query, num_results=5):
     search_results = []
     try:
         for result in search(query, num_results=num_results):
-            search_results.append(result)
+            extracted_info = extract_info(result)
+            search_results.append({
+                'url': result,
+                'info': extracted_info
+            })
     except Exception as e:
         print(f"Error while performing web search: {e}")
     return search_results
+
 
 # Function to authenticate the Azure language client
 
@@ -258,7 +286,9 @@ while (True):
 
     if search_query:
         search_results = perform_web_search(search_query)
-        search_results_str = "\n".join(search_results)
+        search_results_str = "\n".join(
+            [f"{result['url']} - {result['info']}..." for result in search_results])
+
         conversation.append({"role": "assistant",
                             "content": f"I found the following results for your search query '{search_query}':\n{search_results_str}"})
         print(
