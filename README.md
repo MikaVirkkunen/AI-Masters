@@ -18,14 +18,14 @@ This script is an AI Collaboration Tool that utilizes two AI instances to work t
 - Ensures the same code is not added multiple times
 - User-friendly interface
 
-
-
 ## Usage
 
 1. Clone the repository and navigate to the project folder.
 2. Install the required libraries using pip.
 3. Set up the required environment variables.
 4. Run the script and interact with the AI instances to solve problems and generate Python code.
+
+![Alt text](pictures/app.png)
    
 ## Getting Started
 ### Prerequisites
