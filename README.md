@@ -48,10 +48,10 @@ pip install openai==0.27.0 azure-ai-textanalytics==5.1.0 azure-keyvault-secrets=
 ### Setup
 
 1. Clone this repository:
-
+```
 git clone https://github.com/MikaVirkkunen/AI-Masters.git
 cd ai-collaboration-tool
-
+```
 
 2. Set up the required environment variables:
 
