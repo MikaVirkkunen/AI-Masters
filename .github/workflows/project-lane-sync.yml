@@ -13,9 +13,11 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    if: ${{ secrets.PROJECTV2_TOKEN != '' }}
+    env:
+      HAS_TOKEN: ${{ secrets.PROJECTV2_TOKEN != '' }}
     steps:
       - name: Sync labels to project lane
+        if: ${{ env.HAS_TOKEN == 'true' }}
         uses: actions/github-script@v7
         env:
           PROJECT_ID: PVT_kwHOANcUrs4Ba15T
@@ -125,12 +127,3 @@ jobs:
             );
 
             core.info(`Synced project lane option ${laneOptionId} for item ${itemId}.`);
-
-  missing-token:
-    runs-on: ubuntu-latest
-    if: ${{ secrets.PROJECTV2_TOKEN == '' }}
-    steps:
-      - name: Missing token notice
-        run: |
-          echo "PROJECTV2_TOKEN is not configured."
-          echo "Create a classic token with project + repo scopes, store as repo secret PROJECTV2_TOKEN."
