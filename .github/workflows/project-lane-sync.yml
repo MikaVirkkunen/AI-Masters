@@ -1,0 +1,135 @@
+name: Project Lane Sync
+
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled, reopened, closed]
+  pull_request:
+    types: [opened, edited, labeled, unlabeled, reopened, closed]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.PROJECTV2_TOKEN != '' }}
+    steps:
+      - name: Sync labels to project lane
+        uses: actions/github-script@v7
+        env:
+          PROJECT_ID: PVT_kwHOANcUrs4Ba15T
+          LANE_FIELD_ID: PVTSSF_lAHOANcUrs4Ba15TzhVqlvQ
+          OPT_INBOX: "7663d9d7"
+          OPT_TRIAGED: "f2535489"
+          OPT_REPO_ASSIGNED: "21bc9e00"
+          OPT_READY: "efc96709"
+          OPT_IN_AGENT: "982f43e3"
+          OPT_IN_REVIEW: "0e8d68b2"
+          OPT_DONE: "d3d382ba"
+        with:
+          github-token: ${{ secrets.PROJECTV2_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const projectId = process.env.PROJECT_ID;
+            const laneFieldId = process.env.LANE_FIELD_ID;
+
+            const payload = context.payload.pull_request || context.payload.issue;
+            if (!payload?.node_id) {
+              core.info('No issue/pr payload to sync.');
+              return;
+            }
+
+            const isClosed = payload.state === 'closed';
+            const labels = (payload.labels || []).map((l) => l.name);
+
+            let laneOptionId = process.env.OPT_INBOX;
+            if (isClosed) laneOptionId = process.env.OPT_DONE;
+            else if (labels.includes('agent-review')) laneOptionId = process.env.OPT_IN_REVIEW;
+            else if (labels.includes('automation-immediate')) laneOptionId = process.env.OPT_IN_AGENT;
+            else if (labels.includes('agent-ready')) laneOptionId = process.env.OPT_READY;
+            else if (labels.includes('agent-task')) laneOptionId = process.env.OPT_REPO_ASSIGNED;
+            else if (labels.includes('automation-nightly')) laneOptionId = process.env.OPT_TRIAGED;
+
+            async function ensureItemId(contentId) {
+              try {
+                const addRes = await github.graphql(
+                  `mutation($projectId:ID!, $contentId:ID!) {
+                    addProjectV2ItemById(input:{projectId:$projectId, contentId:$contentId}) {
+                      item { id }
+                    }
+                  }`,
+                  { projectId, contentId }
+                );
+
+                const added = addRes?.addProjectV2ItemById?.item?.id;
+                if (added) return added;
+              } catch (_) {
+                // Item may already exist. Fall through to lookup.
+              }
+
+              let cursor = null;
+              for (let i = 0; i < 20; i += 1) {
+                const q = await github.graphql(
+                  `query($projectId:ID!, $cursor:String) {
+                    node(id:$projectId) {
+                      ... on ProjectV2 {
+                        items(first:100, after:$cursor) {
+                          pageInfo { hasNextPage endCursor }
+                          nodes {
+                            id
+                            content {
+                              ... on Issue { id }
+                              ... on PullRequest { id }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }`,
+                  { projectId, cursor }
+                );
+
+                const items = q?.node?.items?.nodes || [];
+                const found = items.find((n) => n?.content?.id === contentId);
+                if (found?.id) return found.id;
+
+                const pageInfo = q?.node?.items?.pageInfo;
+                if (!pageInfo?.hasNextPage) break;
+                cursor = pageInfo.endCursor;
+              }
+
+              throw new Error('Could not locate project item for content.');
+            }
+
+            const itemId = await ensureItemId(payload.node_id);
+
+            await github.graphql(
+              `mutation($projectId:ID!, $itemId:ID!, $fieldId:ID!, $optionId:String!) {
+                updateProjectV2ItemFieldValue(input:{
+                  projectId:$projectId,
+                  itemId:$itemId,
+                  fieldId:$fieldId,
+                  value:{ singleSelectOptionId:$optionId }
+                }) {
+                  projectV2Item { id }
+                }
+              }`,
+              {
+                projectId,
+                itemId,
+                fieldId: laneFieldId,
+                optionId: laneOptionId
+              }
+            );
+
+            core.info(`Synced project lane option ${laneOptionId} for item ${itemId}.`);
+
+  missing-token:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.PROJECTV2_TOKEN == '' }}
+    steps:
+      - name: Missing token notice
+        run: |
+          echo "PROJECTV2_TOKEN is not configured."
+          echo "Create a classic token with project + repo scopes, store as repo secret PROJECTV2_TOKEN."
