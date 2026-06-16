@@ -4,8 +4,8 @@ on:
   issues:
     types: [opened, edited, labeled, unlabeled, reopened, closed]
   pull_request:
-      workflow_dispatch:
     types: [opened, edited, labeled, unlabeled, reopened, closed]
+  workflow_dispatch:
 
 permissions:
   contents: read
