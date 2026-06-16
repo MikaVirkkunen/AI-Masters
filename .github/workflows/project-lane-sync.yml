@@ -2,10 +2,14 @@ name: Project Lane Sync
 
 on:
   issues:
-    types: [opened, edited, labeled, unlabeled, reopened, closed]
+    types: [opened, labeled, unlabeled, closed]
   pull_request:
-    types: [opened, edited, labeled, unlabeled, reopened, closed]
+    types: [opened, labeled, unlabeled, closed]
   workflow_dispatch:
+
+concurrency:
+  group: lane-sync-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || 'manual' }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
