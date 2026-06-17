@@ -1,0 +1,157 @@
+name: Weekly Security Scan
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: weekly-security-scan
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.PROJECTV2_TOKEN != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          output: trivy-report.txt
+          exit-code: '0'
+
+      - name: Evaluate findings
+        id: eval
+        run: |
+          set -euo pipefail
+          if [ -s trivy-report.txt ] && grep -qiE 'CRITICAL|HIGH' trivy-report.txt; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No HIGH/CRITICAL findings." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          {
+            echo '### Trivy weekly scan'
+            echo '```'
+            head -c 60000 trivy-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          head -c 55000 trivy-report.txt > trivy-report.trunc.txt || true
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+          if-no-files-found: ignore
+
+      - name: Open remediation issue and dispatch agent
+        if: steps.eval.outputs.found == 'true'
+        uses: actions/github-script@v7
+        env:
+          PROJECT_ID: PVT_kwHOANcUrs4Ba15T
+          HAS_TOKEN: ${{ env.HAS_TOKEN }}
+        with:
+          github-token: ${{ secrets.PROJECTV2_TOKEN != '' && secrets.PROJECTV2_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const report = fs.readFileSync('trivy-report.trunc.txt', 'utf8').trim();
+            const today = new Date().toISOString().slice(0, 10);
+            const title = '[Security] Weekly scan findings';
+
+            const body = [
+              'Automated weekly Trivy scan detected **HIGH/CRITICAL** issues with available fixes.',
+              '',
+              '### Desired outcome',
+              'Resolve each finding by upgrading the affected dependency to its fixed version (or justifiably suppress).',
+              '',
+              '### Acceptance criteria',
+              '- All HIGH/CRITICAL findings below are remediated or suppressed with justification.',
+              '- Build/tests still pass; no CI weakening.',
+              '',
+              '### Findings',
+              '<details><summary>Trivy report (' + today + ')</summary>',
+              '',
+              '```',
+              report,
+              '```',
+              '',
+              '</details>'
+            ].join('\n');
+
+            const existing = (await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'open', labels: 'security', per_page: 100
+            })).find((i) => i.title === title);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.number,
+                body: 'Re-scan ' + today + ' still finds HIGH/CRITICAL issues.\n\n' + body
+              });
+              core.info('Updated existing security issue #' + existing.number + '.');
+              return;
+            }
+
+            const created = await github.rest.issues.create({
+              owner, repo, title, body,
+              labels: ['security', 'agent-task', 'automation-immediate']
+            });
+            const issue = created.data;
+            core.info('Created security issue #' + issue.number + '.');
+
+            if (process.env.HAS_TOKEN !== 'true') {
+              core.warning('No PROJECTV2_TOKEN; issue created but not added to board / assigned. Assign Copilot manually.');
+              return;
+            }
+
+            try {
+              await github.graphql(
+                `mutation($p:ID!, $c:ID!) { addProjectV2ItemById(input:{projectId:$p, contentId:$c}) { item { id } } }`,
+                { p: process.env.PROJECT_ID, c: issue.node_id }
+              );
+            } catch (e) {
+              core.warning('Add to project failed: ' + e.message);
+            }
+
+            try {
+              const q = await github.graphql(
+                `query($o:String!, $r:String!) {
+                  repository(owner:$o, name:$r) {
+                    suggestedActors(capabilities:[CAN_BE_ASSIGNED], first:50) {
+                      nodes { login __typename ... on Bot { id } }
+                    }
+                  }
+                }`,
+                { o: owner, r: repo }
+              );
+              const bot = (q?.repository?.suggestedActors?.nodes || [])
+                .find((n) => n.login === 'copilot-swe-agent' && n.__typename === 'Bot');
+              if (bot?.id) {
+                await github.graphql(
+                  `mutation($a:ID!, $ids:[ID!]!) { replaceActorsForAssignable(input:{assignableId:$a, actorIds:$ids}) { assignable { ... on Issue { number } } } }`,
+                  { a: issue.node_id, ids: [bot.id] }
+                );
+                core.info('Assigned Copilot coding agent to #' + issue.number + '.');
+              } else {
+                core.warning('Copilot coding agent not assignable in ' + owner + '/' + repo + '.');
+              }
+            } catch (e) {
+              core.warning('Copilot assignment failed: ' + e.message);
+            }
