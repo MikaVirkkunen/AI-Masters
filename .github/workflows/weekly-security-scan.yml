@@ -1,8 +1,6 @@
 name: Weekly Security Scan
 
 on:
-  schedule:
-    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 permissions:
